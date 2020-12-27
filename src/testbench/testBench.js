@@ -78,9 +78,12 @@ export class TestBench extends TestTrigger {
     runSingle(className) {
         Logger.listener = this.listener;
         this.named(className);
-        this.printReport();
-        this.reset();
-        Logger.clearListener();
+        try {
+            this.printReport();
+        } finally {
+            this.reset();
+            Logger.clearListener();
+        }
     }
 
     /**
@@ -92,9 +95,12 @@ export class TestBench extends TestTrigger {
             this.named(key);
             return true;
         });
-        this.printReport();
-        this.reset();
-        Logger.clearListener();
+        try {
+            this.printReport();
+        } finally {
+            this.reset();
+            Logger.clearListener();
+        }
     }
 
     printHeader(testName) {
@@ -119,6 +125,7 @@ export class TestBench extends TestTrigger {
         let successCounter = 0;
         this.successTestMap.forEach((value,parent) => {
             LOG.info(successCounter++ + ". " + value);
+            return true;
         });
         LOG.info("");
 
@@ -126,11 +133,12 @@ export class TestBench extends TestTrigger {
         let failCounter = 0;
         this.failTestMap.forEach((value,parent) => {
             LOG.info(failCounter++ + ". " + value);
+            return true;
         });
         LOG.info("");
 
         if (this.fails != 0) {
-            throw this.failTestMap.size() + "Tests failed";
+            throw this.failTestMap.size() + " Tests failed";
         }
     }
 
