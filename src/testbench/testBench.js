@@ -1,4 +1,5 @@
 import { List, Logger, Map, ObjectFunction } from "coreutil_v1";
+import { ObjectProvider } from "./objectProvider";
 import { TestClassResult } from "./testClassResult";
 import { TestTrigger } from "./testTrigger";
 
@@ -10,8 +11,11 @@ export class TestBench extends TestTrigger {
      * 
      * @param {ObjectFunction} logListener 
      * @param {ObjectFunction} resultListener 
+     * @param {ObjectProvider} objectProvider
      */
-    constructor(logListener = null, resultListener = null) {
+    constructor(logListener = null,
+            resultListener = null, 
+            objectProvider = new ObjectProvider()) {
         
         super();
 
@@ -22,13 +26,19 @@ export class TestBench extends TestTrigger {
         this.resultListener = resultListener;
 
         /** @type {Map} */
-        this.testMap = new Map();
+        this.testClassMap = new Map();
+
+        /** @type {Map} */
+        this.testObjectMap = new Map();
 
         /** @type {List} */
         this.successTestMap = new List();
 
         /** @type {List} */
         this.failTestMap = new List();
+
+        /** @type {ObjectProvider} */
+        this.objectProvider = objectProvider;
     }
 
     /**
@@ -43,23 +53,31 @@ export class TestBench extends TestTrigger {
                 + " which returns a List all the test functions in "
                 + testClass.name + ".prototype"
         }
-        this.testMap.set(testClass.name, testClass);
+        this.testClassMap.set(testClass.name, testClass);
         return this;
     }
 
     contains(testClass) {
-        return this.testMap.contains(testClass.name);
+        return this.testClassMap.contains(testClass.name);
     }
 
-    named(className) {
-        this.printHeader(className);
+    loadObjectByClassName(className) {
+        return new Promise((resolve, reject) => {
+            const testClass = this.testClassMap.get(className);
+            this.objectProvider.provide(testClass).then((testObject) => {
+                this.testObjectMap.set(className, testObject);
+                resolve();
+            });
+        });
+    }
 
-        const testClass = this.testMap.get(className);
-        const testObject = new testClass();
+    runFunctionsByClassName(className) {
+        const testClass = this.testClassMap.get(className);
 
         /** @type {List} */
         const testFunctions = testClass.testFunctions();
 
+        const testObject = this.testObjectMap.get(className);
         let failed = this.runFunctions(testFunctions, testClass, testObject);
 
         if (this.resultListener) {
@@ -101,13 +119,11 @@ export class TestBench extends TestTrigger {
      */
     runSingle(className) {
         Logger.listener = this.logListener;
-        this.named(className);
-        try {
-            this.printReport();
-        } finally {
-            this.reset();
-            Logger.clearListener();
-        }
+        this.printHeader(className);
+        this.loadObjectByClassName(className).then(() => {
+            this.runFunctionsByClassName(className);
+            this.close();
+        });
     }
 
     /**
@@ -115,10 +131,32 @@ export class TestBench extends TestTrigger {
      */
     run() {
         Logger.listener = this.logListener;
-        this.testMap.forEach((key, value, parent) => {
-            this.named(key);
+        const loadObjectByClassNamePromises = [];
+
+        let classNameArray = [];
+        this.testClassMap.forEach((key, value, parent) => {
+            classNameArray.push(key);
             return true;
         });
+        this.runClassNameAt(classNameArray, 0);
+    }
+
+    runClassNameAt(classNameArray, index) {
+        // No more classNames to run
+        if (index >= classNameArray.length) {
+            this.close();
+            return;
+        }
+
+        const className = classNameArray[index];
+        this.printHeader(className);
+        this.loadObjectByClassName(className).then(() => {
+            this.runFunctionsByClassName(className);
+            this.runClassNameAt(classNameArray, index+1);
+        });
+    }
+
+    close() {
         try {
             this.printReport();
         } finally {
