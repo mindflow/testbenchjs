@@ -1,4 +1,5 @@
 import { List, Logger, Map, ObjectFunction } from "coreutil_v1";
+import { TestClassResult } from "./testClassResult";
 import { TestTrigger } from "./testTrigger";
 
 const LOG = new Logger("TestBench");
@@ -7,14 +8,18 @@ export class TestBench extends TestTrigger {
 
     /**
      * 
-     * @param {ObjectFunction} listener 
+     * @param {ObjectFunction} logListener 
+     * @param {ObjectFunction} resultListener 
      */
-    constructor(listener = null) {
+    constructor(logListener = null, resultListener = null) {
         
         super();
 
         /** @type {ObjectFunction} */
-        this.listener = listener;
+        this.logListener = logListener;
+
+        /** @type {ObjectFunction} */
+        this.resultListener = resultListener;
 
         /** @type {Map} */
         this.testMap = new Map();
@@ -55,6 +60,15 @@ export class TestBench extends TestTrigger {
         /** @type {List} */
         const testFunctions = testClass.testFunctions();
 
+        let failed = this.runFunctions(testFunctions, testClass, testObject);
+
+        if (this.resultListener) {
+            this.callResultListener(className, failed);
+        }
+    }
+
+    runFunctions(testFunctions, testClass, testObject) {
+        let failed = false;
         testFunctions.forEach((value, parent) => {
             /** @type {Function} */
             const testFunction = value;
@@ -62,6 +76,7 @@ export class TestBench extends TestTrigger {
                 testFunction.call(testObject);
                 this.successTestMap.add(testClass.name + "." + testFunction.name + "()");
             } catch (exception) {
+                failed = true;
                 LOG.error("Test: " + testClass.name + "." + testFunction.name + "() failed. Reason:");
                 LOG.error(exception);
                 LOG.error("");
@@ -69,6 +84,15 @@ export class TestBench extends TestTrigger {
             }
             return true;
         });
+        return failed;
+    }
+
+    callResultListener(className, failed) {
+        if (failed) {
+            this.resultListener.call(new TestClassResult(className, TestClassResult.FAIL));
+        } else {
+            this.resultListener.call(new TestClassResult(className, TestClassResult.SUCCESS));
+        }
     }
 
     /**
@@ -76,7 +100,7 @@ export class TestBench extends TestTrigger {
      * @param {string} className 
      */
     runSingle(className) {
-        Logger.listener = this.listener;
+        Logger.listener = this.logListener;
         this.named(className);
         try {
             this.printReport();
@@ -90,7 +114,7 @@ export class TestBench extends TestTrigger {
      * Run all test classes
      */
     run() {
-        Logger.listener = this.listener;
+        Logger.listener = this.logListener;
         this.testMap.forEach((key, value, parent) => {
             this.named(key);
             return true;
