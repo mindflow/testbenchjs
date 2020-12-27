@@ -1,7 +1,7 @@
 import { List, Logger, Map, ObjectFunction } from "coreutil_v1";
-import { ObjectProvider } from "./objectProvider";
-import { TestClassResult } from "./testClassResult";
-import { TestTrigger } from "./testTrigger";
+import { ObjectProvider } from "./objectProvider.js";
+import { TestClassResult } from "./testClassResult.js";
+import { TestTrigger } from "./testTrigger.js";
 
 const LOG = new Logger("TestBench");
 
