@@ -161,7 +161,7 @@ export class TestBench extends TestTrigger {
         });
         LOG.info("");
 
-        if (this.fails != 0) {
+        if (failCounter != 0) {
             throw this.failTestMap.size() + " Tests failed";
         }
     }
