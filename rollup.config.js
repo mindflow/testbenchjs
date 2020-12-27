@@ -1,6 +1,5 @@
 import multiEntry from 'rollup-plugin-multi-entry';
 import postprocess from 'rollup-plugin-postprocess';
-import copy from 'rollup-plugin-copy';
 import uglify from "rollup-plugin-uglify-es";
 
 export default [{
@@ -30,13 +29,6 @@ export default [{
     },
     plugins: [
         multiEntry(),
-        copy({
-            targets: [
-              { src: 'src/**/*.css', dest: 'dist/assets/testbenchjs' },
-              { src: 'src/**/*.html', dest: 'dist/assets/testbenchjs' }
-            ],
-            verbose: true
-        }),
         //uglify()
     ]
 }]

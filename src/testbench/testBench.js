@@ -1,16 +1,28 @@
-import { List, Logger, Map } from "coreutil_v1";
-import { ExecutionLog } from "./executionLog/executionLog.js";
+import { List, Logger, Map, ObjectFunction } from "coreutil_v1";
+import { TestTrigger } from "./testTrigger";
 
 const LOG = new Logger("TestBench");
 
-export class TestBench {
+export class TestBench extends TestTrigger {
 
-    constructor() {
-        this.executionLogMap = new Map();
+    /**
+     * 
+     * @param {ObjectFunction} listener 
+     */
+    constructor(listener = null) {
+        
+        super();
 
+        /** @type {ObjectFunction} */
+        this.listener = listener;
+
+        /** @type {Map} */
         this.testMap = new Map();
 
+        /** @type {List} */
         this.successTestMap = new List();
+
+        /** @type {List} */
         this.failTestMap = new List();
     }
 
@@ -19,25 +31,30 @@ export class TestBench {
      * @param {Object} testObject 
      * @returns {TestBench}
      */
-    addTest(name, testClass) {
+    addTest(testClass) {
         if (!testClass.testFunctions || !(testClass.testFunctions() instanceof List)) {
             throw "A static function called 'testFunctions' must be provided in " 
                 + testClass.name 
                 + " which returns a List all the test functions in "
                 + testClass.name + ".prototype"
         }
-        this.executionLogMap.set(name, new ExecutionLog("TestBench." + name));
-        this.testMap.set(name, testClass);
+        this.testMap.set(testClass.name, testClass);
         return this;
     }
 
-    runNamed(name) {
-        this.printHeader(name);
-        const log = this.executionLogMap.get(name);
-        const testClass = this.testMap.get(name);
+    contains(testClass) {
+        return this.testMap.contains(testClass.name);
+    }
+
+    named(className) {
+        this.printHeader(className);
+
+        const testClass = this.testMap.get(className);
         const testObject = new testClass();
+
         /** @type {List} */
         const testFunctions = testClass.testFunctions();
+
         testFunctions.forEach((value, parent) => {
             /** @type {Function} */
             const testFunction = value;
@@ -45,41 +62,51 @@ export class TestBench {
                 testFunction.call(testObject);
                 this.successTestMap.add(testClass.name + "." + testFunction.name + "()");
             } catch (exception) {
-                log.error("Test: " + testClass.name + "." + testFunction.name + "() failed. Reason:");
-                log.error(exception);
-                log.error("");
+                LOG.error("Test: " + testClass.name + "." + testFunction.name + "() failed. Reason:");
+                LOG.error(exception);
+                LOG.error("");
                 this.failTestMap.add(testClass.name + "." + testFunction.name + "()");
             }
             return true;
         });
     }
 
-    runSingle(name) {
-        this.runNamed(name);
+    /**
+     * Run test by class name
+     * @param {string} className 
+     */
+    runSingle(className) {
+        Logger.listener = this.listener;
+        this.named(className);
         this.printReport();
         this.reset();
+        Logger.clearListener();
     }
 
+    /**
+     * Run all test classes
+     */
     run() {
+        Logger.listener = this.listener;
         this.testMap.forEach((key, value, parent) => {
-            this.runNamed(key);
+            this.named(key);
             return true;
         });
         this.printReport();
         this.reset();
+        Logger.clearListener();
     }
 
     printHeader(testName) {
-        const log = this.executionLogMap.get(testName);
         const line = "#  Running test: " + testName + "  #";
         let decoration = "";
         for (let i = 0; i < line.length ; i++) {
             decoration = decoration + "#";
         }
-        log.info(decoration);
-        log.info(line);
-        log.info(decoration);
-        log.info("");
+        LOG.info(decoration);
+        LOG.info(line);
+        LOG.info(decoration);
+        LOG.info("");
     }
 
     printReport() {

@@ -25,5 +25,5 @@ export class TestExample {
 }
 
 new TestBench()
-    .addTest("TestExample", TestExample)
+    .addTest(TestExample)
     .run();
