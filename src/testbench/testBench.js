@@ -266,21 +266,25 @@ export class TestBench extends TestTrigger {
         LOG.info("###################");
         LOG.info("");
 
-        LOG.info("Succeeded:");
         let successCounter = 0;
-        this.runSuccessTestList.forEach((value,parent) => {
-            LOG.info(successCounter++ + ". " + value);
-            return true;
-        });
-        LOG.info("");
+        if (this.runSuccessTestList.size() > 0){
+            LOG.info("Succeeded:");
+            this.runSuccessTestList.forEach((value,parent) => {
+                LOG.info(successCounter++ + ". " + value);
+                return true;
+            });
+            LOG.info("");
+        }
 
-        LOG.info("Failed:");
         let failCounter = 0;
-        this.runFailTestList.forEach((value,parent) => {
-            LOG.info(failCounter++ + ". " + value);
-            return true;
-        });
-        LOG.info("");
+        if (this.runFailTestList.size() > 0){
+            LOG.info("Failed:");
+            this.runFailTestList.forEach((value,parent) => {
+                LOG.info(failCounter++ + ". " + value);
+                return true;
+            });
+            LOG.info("");
+        }
 
         if (failCounter != 0) {
             throw this.runFailTestList.size() + " Tests failed";
