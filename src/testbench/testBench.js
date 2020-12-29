@@ -103,6 +103,7 @@ export class TestBench extends TestTrigger {
         return new Promise((resolve, reject) => {
             context.objectProvider.provide(testClass).then((testObject) => {
                 context.testObjectMap.set(testClass.name, testObject);
+                TestBench.callResultListener(testClass, TestClassState.RUNNING, context);
                 setTimeout(() => {
                     resolve();
                 },100);
@@ -119,7 +120,6 @@ export class TestBench extends TestTrigger {
         /** @type {List} */
         const testFunctions = testClass.testFunctions();
         return testFunctions.promiseChain((testFunction) => {
-            TestBench.callResultListener(testClass, TestClassState.RUNNING, context);
             return new Promise((functionCompleteResolve, reject) => {
                 TestBench.runFunction(testClass, testFunction, functionCompleteResolve, context);
             });
