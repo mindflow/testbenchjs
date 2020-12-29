@@ -46,12 +46,6 @@ export class TestBench extends TestTrigger {
         /** @type {List} */
         this.runTestClassList = new List();
 
-        /** @type {Number} */
-        this.runTestFunctionCount = 0;
-
-        /** @type {Number} */
-        this.runTestClassCount = 0;
-
     }
 
     /**
@@ -74,19 +68,12 @@ export class TestBench extends TestTrigger {
         return this.testClassMap.contains(testClass.name);
     }
 
-    /**
-     * Run all test classes
-     */
     run() {
         Logger.listener = this.logListener;
-        let classNameArray = [];
-        this.testClassMap.forEach((key, value, parent) => {
-            this.runTestClassList.add(value);
-            this.runTestFunctionList.addAll(value.testFunctions());
-            classNameArray.push(key);
-            return true;
+        let parent = this;
+        return this.testClassMap.promiseChain(this.runClass, this).then(() => {
+            this.close(parent);
         });
-        this.runClassNameAt(classNameArray, 0);
     }
 
     /**
@@ -95,35 +82,34 @@ export class TestBench extends TestTrigger {
      */
     runSingle(className) {
         Logger.listener = this.logListener;
-        this.runTestClassList.add(this.testClassMap.get(className));
-        this.runClassNameAt([className], 0);
-    }
-
-    runClassNameAt(classNameArray, index) {
-
-        if (index >= classNameArray.length) {
-            return;
-        }
-
-        const className = classNameArray[index];
-
-        this.runTestClassCount++;
-
-        this.printHeader(className);
-        this.loadObjectByClassName(className).then(() => {
-            this.runFunctionsByClassName(className, () => {
-                this.runClassNameAt(classNameArray, index+1);
-            });
-
+        let testClass = this.testClassMap.get(className);
+        let parent = this;
+        return this.runClass(className, testClass, this).then(() => {
+            this.close(parent);
         });
     }
 
-    loadObjectByClassName(className) {
+    runClass(className, testClass, parent) {
         return new Promise((resolve, reject) => {
-            const testClass = this.testClassMap.get(className);
-            this.objectProvider.provide(testClass).then((testObject) => {
-                this.testObjectMap.set(className, testObject);
-                resolve();
+            parent.runTestClassList.add(testClass);
+            parent.runTestFunctionList.addAll(testClass.testFunctions());
+            parent.printHeader(className);
+            parent.loadObjectByClassName(className, parent).then(() => {
+                parent.runFunctionsByClassName(className, parent).then(() => {
+                    resolve();
+                });
+            });
+        });
+    }
+
+    loadObjectByClassName(className, parent) {
+        return new Promise((resolve, reject) => {
+            const testClass = parent.testClassMap.get(className);
+            parent.objectProvider.provide(testClass).then((testObject) => {
+                parent.testObjectMap.set(className, testObject);
+                setTimeout(() => {
+                    resolve();
+                },1000);
             });
         });
     }
@@ -131,39 +117,28 @@ export class TestBench extends TestTrigger {
     /**
      * 
      * @param {String} className 
-     * @param {Function} onComplete 
+     * @param {Object} parent 
      */
-    runFunctionsByClassName(className, onComplete) {
-        const testClass = this.testClassMap.get(className);
+    runFunctionsByClassName(className, parent) {
+        const testClass = parent.testClassMap.get(className);
+        /** @type {List} */
         const testFunctions = testClass.testFunctions();
-        const functionArray = [];
-
-        testFunctions.forEach((value, parent) => {
-            /** @type {Function} */
-            const testFunction = value;
-            functionArray.push(testFunction);
-            return true;
-        });
-
-        if (functionArray.length > 0) {
-            this.runFunctionAt(testClass, functionArray, 0, onComplete);
-        }
+        return testFunctions.promiseChain((testFunction) => {
+            return new Promise((functionCompleteResolve, reject) => {
+                parent.runFunction(testClass, testFunction, functionCompleteResolve, parent);
+            });
+        }, parent);
     }
 
     /**
      * 
      * @param {Array} functionArray 
      * @param {Number} index 
-     * @param {Function} onComplete
+     * @param {Function} functionCompleteResolve
      */
-    runFunctionAt(testClass, functionArray, index, onComplete) {
-        if (functionArray.length <= index) {
-            onComplete.call();
-            return;
-        }
+    runFunction(testClass, testFunction, functionCompleteResolve, parent) {
         
-        const testObject = this.testObjectMap.get(testClass.name);
-        const testFunction = functionArray[index];
+        const testObject = parent.testObjectMap.get(testClass.name);
 
         /** @type {Promise} */
         let testFunctionResult = null;
@@ -171,79 +146,64 @@ export class TestBench extends TestTrigger {
         try {
             testFunctionResult = testFunction.call(testObject);
             if (!(testFunctionResult instanceof Promise)) {
-                this.runTestFunctionCount ++;
-                this.reportSuccess(testClass, testFunction);
-                this.runFunctionAt(testClass, functionArray, index+1, onComplete);
+                parent.reportSuccess(testClass, testFunction, parent);
             };
         } catch (exception) {
-            this.runTestFunctionCount ++;
-            this.reportFailure(testClass, testFunction, exception);
-            this.runFunctionAt(testClass, functionArray, index+1, onComplete);
+            parent.reportFailure(testClass, testFunction, exception, parent);
         }
 
         if (!(testFunctionResult instanceof Promise)) {
-            return new Promise((resolve,reject) => { resolve(); });
+            functionCompleteResolve();
+            return;
         }
 
         testFunctionResult.then(() => {
-            this.runTestFunctionCount ++;
-            this.reportSuccess(testClass, testFunction);
-            this.runFunctionAt(testClass, functionArray, index+1, onComplete);
-
+            parent.reportSuccess(testClass, testFunction, parent);
+            functionCompleteResolve();
         }).catch((exception) => {
-            this.runTestFunctionCount ++;
-            this.reportFailure(testClass, testFunction, exception);
-            this.runFunctionAt(testClass, functionArray, index+1, onComplete);
-
+            parent.reportFailure(testClass, testFunction, exception, parent);
+            functionCompleteResolve();
         });
     }
 
-    reportFailure(testClass, testFunction, exception) {
-        this.addFail(testClass, testFunction);
-        this.callResultListener(testClass, true);
+    reportFailure(testClass, testFunction, exception, parent) {
+        parent.addFail(testClass, testFunction, parent);
+        parent.callResultListener(testClass, true, parent);
         LOG.error(this.signature(testClass, testFunction) + " failed. Reason:");
         LOG.error(exception);
         LOG.error("");
-        this.tryClose();
     }
 
-    reportSuccess(testClass, testFunction) {
-        this.addSuccess(testClass, testFunction);
-        this.callResultListener(testClass, false);
-        this.tryClose();
+    reportSuccess(testClass, testFunction, parent) {
+        parent.addSuccess(testClass, testFunction, parent);
+        parent.callResultListener(testClass, false, parent);
     }
 
-    callResultListener(testClass, failed) {
-        if (!this.resultListener) {
+    callResultListener(testClass, failed, parent) {
+        if (!parent.resultListener) {
             return;
         }
         const result = failed ? TestClassResult.FAIL : TestClassResult.SUCCESS;
-        this.resultListener.call(new TestClassResult(testClass.name, result));
+        parent.resultListener.call(new TestClassResult(testClass.name, result));
     }
 
-    addSuccess(testClass, testFunction) {
-        this.runSuccessTestList.add(this.signature(testClass, testFunction));
+    addSuccess(testClass, testFunction, parent) {
+        parent.runSuccessTestList.add(parent.signature(testClass, testFunction));
     }
 
-    addFail(testClass, testFunction) {
-        this.runFailTestList.add(this.signature(testClass, testFunction));
+    addFail(testClass, testFunction, parent) {
+        parent.runFailTestList.add(parent.signature(testClass, testFunction));
     }
 
     signature(testClass, testFunction) {
         return testClass.name + "." + testFunction.name + "()";
     }
 
-    tryClose() {
-        if (this.runTestFunctionList.size() <= this.runTestFunctionCount && this.runTestClassList.size() <= this.runTestClassCount) {
-            this.close();
-        }
-    }
-
-    close() {
+    close(parent) {
         try {
-            this.printReport();
+            parent.printReport(parent);
         } finally {
-            this.reset();
+            parent.reset(parent);
             Logger.clearListener();
         }
     }
@@ -260,16 +220,16 @@ export class TestBench extends TestTrigger {
         LOG.info("");
     }
 
-    printReport() {
+    printReport(parent) {
         LOG.info("###################");
         LOG.info("#   Test Report   #");
         LOG.info("###################");
         LOG.info("");
 
         let successCounter = 0;
-        if (this.runSuccessTestList.size() > 0){
+        if (parent.runSuccessTestList.size() > 0){
             LOG.info("Succeeded:");
-            this.runSuccessTestList.forEach((value,parent) => {
+            parent.runSuccessTestList.forEach((value,parent) => {
                 LOG.info(successCounter++ + ". " + value);
                 return true;
             });
@@ -277,9 +237,9 @@ export class TestBench extends TestTrigger {
         }
 
         let failCounter = 0;
-        if (this.runFailTestList.size() > 0){
+        if (parent.runFailTestList.size() > 0){
             LOG.info("Failed:");
-            this.runFailTestList.forEach((value,parent) => {
+            parent.runFailTestList.forEach((value,parent) => {
                 LOG.info(failCounter++ + ". " + value);
                 return true;
             });
@@ -287,18 +247,15 @@ export class TestBench extends TestTrigger {
         }
 
         if (failCounter != 0) {
-            throw this.runFailTestList.size() + " Tests failed";
+            throw parent.runFailTestList.size() + " Tests failed";
         }
     }
 
-    reset() {
-        this.runFailTestList = new List();
-        this.runSuccessTestList = new List();
+    reset(parent) {
+        parent.runFailTestList = new List();
+        parent.runSuccessTestList = new List();
 
-        this.runTestFunctionList = new List();
-        this.runTestClassList = new List();
-
-        this.runTestFunctionCount = 0;
-        this.runTestClassCount = 0;
+        parent.runTestFunctionList = new List();
+        parent.runTestClassList = new List();
     }
 }
