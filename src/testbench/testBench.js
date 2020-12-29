@@ -109,7 +109,7 @@ export class TestBench extends TestTrigger {
                 parent.testObjectMap.set(className, testObject);
                 setTimeout(() => {
                     resolve();
-                },1000);
+                },100);
             });
         });
     }
