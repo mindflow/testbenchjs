@@ -57,7 +57,7 @@ export class TestBench extends TestTrigger {
     runAll() {
         Logger.listener = this.logListener;
         let context = new TestExecutionContext(this.testClassMap, this.objectProvider, this.resultListener);
-        return this.testClassMap.promiseChain(TestBench.runSingleClass, context).then(() => {
+        return this.testClassMap.promiseChain(TestBench.run, context).then(() => {
             TestBench.close(context);
         }).catch((error) => {
             throw error;
@@ -72,8 +72,10 @@ export class TestBench extends TestTrigger {
         Logger.listener = this.logListener;
         let testClass = this.testClassMap.get(testClassName);
         let context = new TestExecutionContext(this.testClassMap, this.objectProvider, this.resultListener);
-        return TestBench.runSingleClass(testClassName, testClass, context).then(() => {
+        return TestBench.run(testClassName, testClass, context).then(() => {
             TestBench.close(context);
+        }).catch((error) => {
+            throw error;
         });
     }
 
@@ -85,8 +87,10 @@ export class TestBench extends TestTrigger {
         Logger.listener = this.logListener;
         let testClass = this.testClassMap.get(testClassName);
         let context = new TestExecutionContext(this.testClassMap, this.objectProvider, this.resultListener);
-        return TestBench.runTheClass(testClassName, testClass, context).then(() => {
+        return TestBench.run(testClassName, testClass, context, functionName).then(() => {
             TestBench.close(context);
+        }).catch((error) => {
+            throw error;
         });
     }
 
@@ -96,15 +100,27 @@ export class TestBench extends TestTrigger {
      * @param {Object} testClass 
      * @param {TestExecutionContext} context 
      */
-    static runSingleClass(testClassName, testClass, context) {
+    static run(testClassName, testClass, context, functionName = null) {
         return new Promise((resolve, reject) => {
-            context.runTestClassList.add(testClass);
-            context.runTestFunctionList.addAll(testClass.testFunctions());
             TestBench.printHeader(testClass.name);
-            TestBench.runFunctionsByClass(testClass, context).then(() => {
+            TestBench.runFunctionsByClass(testClass, context, functionName).then(() => {
                 resolve();
             });
         });
+    }
+
+    /**
+     * 
+     * @param {List} functions 
+     * @param {String} functionName 
+     */
+    static filter(functions, functionName) {
+        if (!functionName) {
+            return functions;
+        }
+        return new List(functions.getArray().filter((value) => {
+            return value === functionName;
+        }));
     }
 
     /**
@@ -120,10 +136,7 @@ export class TestBench extends TestTrigger {
             }
             context.objectProvider.provide(testClass).then((testObject) => {
                 context.testObjectMap.set(testClass.name, testObject);
-                TestBench.callResultListener(testClass, TestClassState.RUNNING, context);
-                setTimeout(() => {
-                    resolve();
-                },100);
+                resolve();
             });
         });
     }
@@ -133,10 +146,13 @@ export class TestBench extends TestTrigger {
      * @param {Object} testClass 
      * @param {TestExecutionContext} context 
      */
-    static runFunctionsByClass(testClass, context) {
+    static runFunctionsByClass(testClass, context, functionName) {
         /** @type {List} */
         const testFunctions = testClass.testFunctions();
         return testFunctions.promiseChain((testFunction) => {
+            if (functionName && testFunction.name !== functionName) {
+                return new Promise((resolve,reject) => { resolve(); });
+            }
             return new Promise((functionCompleteResolve, reject) => {
                 TestBench.runFunction(testClass, testFunction, functionCompleteResolve, context);
             });
@@ -151,6 +167,7 @@ export class TestBench extends TestTrigger {
      * @param {TestExecutionContext} context 
      */
     static runFunction(testClass, testFunction, functionCompleteResolve, context) {
+        TestBench.callResultListener(context, TestClassState.RUNNING, testClass, testFunction);
         TestBench.loadObjectByClass(testClass, context).then(() => {
             const testObject = context.testObjectMap.get(testClass.name);
 
@@ -190,7 +207,7 @@ export class TestBench extends TestTrigger {
      */
     static reportFailure(testClass, testFunction, exception, context) {
         TestBench.addFail(testClass, testFunction, context);
-        TestBench.callResultListener(testClass, TestClassState.FAIL, context);
+        TestBench.callResultListener(context, TestClassState.FAIL, testClass, testFunction);
         LOG.error(TestBench.signature(testClass, testFunction) + " failed. Reason:");
         LOG.error(exception);
         LOG.error("");
@@ -204,7 +221,7 @@ export class TestBench extends TestTrigger {
      */
     static reportSuccess(testClass, testFunction, context) {
         TestBench.addSuccess(testClass, testFunction, context);
-        TestBench.callResultListener(testClass, TestClassState.SUCCESS, context);
+        TestBench.callResultListener(context, TestClassState.SUCCESS, testClass, testFunction);
     }
 
     /**
@@ -213,11 +230,11 @@ export class TestBench extends TestTrigger {
      * @param {Number} state 
      * @param {TestExecutionContext} context 
      */
-    static callResultListener(testClass, state, context) {
+    static callResultListener(context, state, testClass, testFunction) {
         if (!context.resultListener) {
             return;
         }
-        context.resultListener.call(new TestClassState(testClass.name, state));
+        context.resultListener.call(new TestClassState(state, testClass.name, testFunction ? testFunction.name : null));
     }
 
     /**

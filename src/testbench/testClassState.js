@@ -9,12 +9,16 @@ export class TestClassState {
      * @param {String} className 
      * @param {String} state 
      */
-    constructor(className, state) {
+    constructor(state, className, functionName) {
+
+        /** @type {String} */
+        this.state = state;
 
         /** @type {String} */
         this.className = className;
-        
+
         /** @type {String} */
-        this.state = state;
+        this.functionName = functionName;
+        
     }
 }

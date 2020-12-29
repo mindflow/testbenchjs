@@ -29,12 +29,6 @@ export class TestExecutionContext {
         /** @type {List} */
         this.runFailTestList = new List();
         
-        /** @type {List} */
-        this.runTestFunctionList = new List();
-
-        /** @type {List} */
-        this.runTestClassList = new List();
-        
     }
 
 }
