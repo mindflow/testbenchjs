@@ -26,4 +26,4 @@ export class TestExample {
 
 new TestBench()
     .addTest(TestExample)
-    .run();
+    .runAll();
