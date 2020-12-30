@@ -36,7 +36,7 @@ export class TestBench extends TestTrigger {
 
     /**
      * 
-     * @param {Object} testObject 
+     * @param {Function} testClass 
      * @returns {TestBench}
      */
     addTest(testClass) {
@@ -46,6 +46,12 @@ export class TestBench extends TestTrigger {
                 + " which returns a List all the test functions in "
                 + testClass.name + ".prototype"
         }
+        testClass.testFunctions().forEach((value,parent) => {
+            if(!value) {
+                throw testClass.name + ".testFunctions() refers to missing functions";
+            }
+            return true;
+        }, this);
         this.testClassMap.set(testClass.name, testClass);
         return this;
     }
