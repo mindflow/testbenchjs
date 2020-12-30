@@ -105,6 +105,8 @@ export class TestBench extends TestTrigger {
             TestBench.printHeader(testClass.name);
             TestBench.runFunctionsByClass(testClass, context, functionName).then(() => {
                 resolve();
+            }).catch((error) => {
+                reject(error);
             });
         });
     }
@@ -137,6 +139,8 @@ export class TestBench extends TestTrigger {
             context.objectProvider.provide(testClass).then((testObject) => {
                 context.testObjectMap.set(testClass.name, testObject);
                 resolve();
+            }).catch((error) => {
+                reject(error);
             });
         });
     }
