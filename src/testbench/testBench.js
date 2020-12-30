@@ -120,9 +120,9 @@ export class TestBench extends TestTrigger {
         if (!functionName) {
             return functions;
         }
-        return new List(functions.getArray().filter((value) => {
+        return functions.filter((value) => {
             return value === functionName;
-        }));
+        });
     }
 
     /**
