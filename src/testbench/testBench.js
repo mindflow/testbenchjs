@@ -105,16 +105,11 @@ export class TestBench extends TestTrigger {
      * @param {String} testClassName
      * @param {Object} testClass 
      * @param {TestExecutionContext} context 
+     * @return {Promise}
      */
     static run(testClassName, testClass, context, functionName = null) {
-        return new Promise((resolve, reject) => {
-            TestBench.printHeader(testClass.name);
-            TestBench.runFunctionsByClass(testClass, context, functionName).then(() => {
-                resolve();
-            }).catch((error) => {
-                reject(error);
-            });
-        });
+        TestBench.printHeader(testClass.name);
+        return TestBench.runFunctionsByClass(testClass, context, functionName);
     }
 
     /**
@@ -161,7 +156,7 @@ export class TestBench extends TestTrigger {
         const testFunctions = testClass.testFunctions();
         return testFunctions.promiseChain((testFunction) => {
             if (functionName && testFunction.name !== functionName) {
-                return new Promise((resolve,reject) => { resolve(); });
+                return Promise.resolve();
             }
             return new Promise((functionCompleteResolve, reject) => {
                 TestBench.runFunction(testClass, testFunction, functionCompleteResolve, context);
