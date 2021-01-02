@@ -1,5 +1,5 @@
 import multi from '@rollup/plugin-multi-entry';
-import replace from '@rollup/plugin-replace';
+import webes from 'plugin-webes';
 import { terser } from "rollup-plugin-terser";
 
 export default [{
@@ -13,10 +13,9 @@ export default [{
     },
     plugins: [
         multi(),
-        replace({
-            'coreutil_v1': 'coreutilv1',
-
-            'coreutilv1': './coreutil_v1.js'
+        webes({
+            'coreutil_v1': './coreutil_v1.js',
+            replaceStage: 'renderChunk'
         })
     ]
 },{
@@ -29,10 +28,9 @@ export default [{
     },
     plugins: [
         multi(),
-        replace({
-            'coreutil_v1': 'coreutilv1',
-
-            'coreutilv1': './coreutil_v1.js'
+        webes({
+            'coreutil_v1': './coreutil_v1.js',
+            replaceStage: 'renderChunk'
         }),
         terser()
     ]
