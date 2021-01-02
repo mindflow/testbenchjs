@@ -1,6 +1,6 @@
-import multiEntry from 'rollup-plugin-multi-entry';
-import postprocess from 'rollup-plugin-postprocess';
-import uglify from "rollup-plugin-uglify-es";
+import multi from '@rollup/plugin-multi-entry';
+import replace from '@rollup/plugin-replace';
+import { terser } from "rollup-plugin-terser";
 
 export default [{
     input: "src/**/*.js",
@@ -12,10 +12,12 @@ export default [{
         format: "es"
     },
     plugins: [
-        multiEntry(),
-        postprocess([
-            [/(?<=import\s*(.*)\s*from\s*)['"]((?!.*[.]js).*)['"];/, '\'./$2.js\'']
-        ])
+        multi(),
+        replace({
+            'coreutil_v1': 'coreutilv1',
+
+            'coreutilv1': './coreutil_v1.js'
+        })
     ]
 },{
     input: "src/**/*.js",
@@ -26,11 +28,13 @@ export default [{
         format: "es"
     },
     plugins: [
-        multiEntry(),
-        postprocess([
-            [/(?<=import\s*(.*)\s*from\s*)['"]((?!.*[.]js).*)['"];/, '\'./$2.js\'']
-        ]),
-        uglify()
+        multi(),
+        replace({
+            'coreutil_v1': 'coreutilv1',
+
+            'coreutilv1': './coreutil_v1.js'
+        }),
+        terser()
     ]
 },{
     input: "src/**/*.js",
@@ -42,7 +46,6 @@ export default [{
         format: "cjs"
     },
     plugins: [
-        multiEntry(),
-        //uglify()
+        multi()
     ]
 }]
