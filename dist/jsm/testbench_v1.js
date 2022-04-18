@@ -46,11 +46,11 @@ class TestExecutionContext {
      * 
      * @param {Map} testClassMap
      * @param {ObjectProvider} objectProvider 
-     * @param {ObjectFunction} resultListener 
+     * @param {Method} resultListener 
      */
     constructor(testClassMap, objectProvider, resultListener = null) {
 
-        /** @type {ObjectFunction} */
+        /** @type {Method} */
         this.resultListener = resultListener;
 
         /** @type {ObjectProvider} */
@@ -105,8 +105,8 @@ class TestBench extends TestTrigger {
 
     /**
      * 
-     * @param {ObjectFunction} logListener 
-     * @param {ObjectFunction} resultListener 
+     * @param {Method} logListener 
+     * @param {Method} resultListener 
      * @param {ObjectProvider} objectProvider
      */
     constructor(logListener = null,
@@ -115,13 +115,13 @@ class TestBench extends TestTrigger {
         
         super();
 
-        /** @type {ObjectFunction} */
+        /** @type {Method} */
         this.logListener = logListener;
 
         /** @type {Map} */
         this.testClassMap = new Map();
 
-        /** @type {ObjectFunction} */
+        /** @type {Method} */
         this.resultListener = resultListener;
 
         /** @type {ObjectProvider} */

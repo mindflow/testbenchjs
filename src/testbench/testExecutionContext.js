@@ -1,4 +1,4 @@
-import { List, Map, ObjectFunction } from "coreutil_v1";
+import { List, Map, Method } from "coreutil_v1";
 import { ObjectProvider } from "./objectProvider.js";
 
 export class TestExecutionContext {
@@ -7,11 +7,11 @@ export class TestExecutionContext {
      * 
      * @param {Map} testClassMap
      * @param {ObjectProvider} objectProvider 
-     * @param {ObjectFunction} resultListener 
+     * @param {Method} resultListener 
      */
     constructor(testClassMap, objectProvider, resultListener = null) {
 
-        /** @type {ObjectFunction} */
+        /** @type {Method} */
         this.resultListener = resultListener;
 
         /** @type {ObjectProvider} */

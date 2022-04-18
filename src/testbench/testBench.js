@@ -1,4 +1,4 @@
-import { List, Logger, Map, ObjectFunction } from "coreutil_v1";
+import { List, Logger, Map, Method } from "coreutil_v1";
 import { ObjectProvider } from "./objectProvider.js";
 import { TestClassState } from "./testClassState.js";
 import { TestExecutionContext } from "./testExecutionContext.js";
@@ -10,8 +10,8 @@ export class TestBench extends TestTrigger {
 
     /**
      * 
-     * @param {ObjectFunction} logListener 
-     * @param {ObjectFunction} resultListener 
+     * @param {Method} logListener 
+     * @param {Method} resultListener 
      * @param {ObjectProvider} objectProvider
      */
     constructor(logListener = null,
@@ -20,13 +20,13 @@ export class TestBench extends TestTrigger {
         
         super();
 
-        /** @type {ObjectFunction} */
+        /** @type {Method} */
         this.logListener = logListener;
 
         /** @type {Map} */
         this.testClassMap = new Map();
 
-        /** @type {ObjectFunction} */
+        /** @type {Method} */
         this.resultListener = resultListener;
 
         /** @type {ObjectProvider} */
