@@ -60,44 +60,50 @@ export class TestBench extends TestTrigger {
         return this.testClassMap.contains(testClass.name);
     }
 
-    runAll() {
+    async runAll() {
         Logger.listener = this.logListener;
         let context = new TestExecutionContext(this.testClassMap, this.objectProvider, this.resultListener);
-        return this.testClassMap.promiseChain(TestBench.run, context).then(() => {
+        try {
+            await this.testClassMap.promiseChain(TestBench.run, context);
             TestBench.close(context);
-        }).catch((error) => {
+            return context;
+        } catch(error) {
             throw error;
-        });
+        }
     }
 
     /**
      * Run test by class name
      * @param {string} testClassName 
      */
-    runClass(testClassName) {
+    async runClass(testClassName) {
         Logger.listener = this.logListener;
         let testClass = this.testClassMap.get(testClassName);
         let context = new TestExecutionContext(this.testClassMap, this.objectProvider, this.resultListener);
-        return TestBench.run(testClassName, testClass, context).then(() => {
+        try {
+            await TestBench.run(testClassName, testClass, context);
             TestBench.close(context);
-        }).catch((error) => {
+            return context;
+        } catch(error) {
             throw error;
-        });
+        }
     }
 
     /**
      * Run test by class name
      * @param {string} testClassName 
      */
-    runFunction(testClassName, functionName) {
+    async runFunction(testClassName, functionName) {
         Logger.listener = this.logListener;
         let testClass = this.testClassMap.get(testClassName);
         let context = new TestExecutionContext(this.testClassMap, this.objectProvider, this.resultListener);
-        return TestBench.run(testClassName, testClass, context, functionName).then(() => {
+        try {
+            await TestBench.run(testClassName, testClass, context, functionName);
             TestBench.close(context);
-        }).catch((error) => {
+            return context;
+        } catch(error) {
             throw error;
-        });
+        }
     }
 
     /**
@@ -131,19 +137,17 @@ export class TestBench extends TestTrigger {
      * @param {Object} testClass 
      * @param {TestExecutionContext} context 
      */
-    static loadObjectByClass(testClass, context) {
-        return new Promise((resolve, reject) => {
-            if (context.testObjectMap.contains(testClass.name)) {
-                resolve();
-                return;
-            }
-            context.objectProvider.provide(testClass).then((testObject) => {
-                context.testObjectMap.set(testClass.name, testObject);
-                resolve();
-            }).catch((error) => {
-                reject(error);
-            });
-        });
+    static async loadObjectByClass(testClass, context) {
+        if (context.testObjectMap.contains(testClass.name)) {
+            return context;
+        }
+        try {
+            const testObject = await context.objectProvider.provide(testClass);
+            context.testObjectMap.set(testClass.name, testObject);
+            return context;
+        } catch(error) {
+            throw new Error(error);
+        }
     }
 
     /**
@@ -151,16 +155,14 @@ export class TestBench extends TestTrigger {
      * @param {Object} testClass 
      * @param {TestExecutionContext} context 
      */
-    static runFunctionsByClass(testClass, context, functionName) {
+    static async runFunctionsByClass(testClass, context, functionName) {
         /** @type {List} */
         const testFunctions = testClass.testFunctions();
-        return testFunctions.promiseChain((testFunction) => {
+        await testFunctions.promiseChain((testFunction) => {
             if (functionName && testFunction.name !== functionName) {
                 return Promise.resolve();
             }
-            return new Promise((functionCompleteResolve, reject) => {
-                TestBench.runFunction(testClass, testFunction, functionCompleteResolve, context);
-            });
+            return TestBench.runFunction(testClass, testFunction, context);
         }, context);
     }
 
@@ -171,36 +173,31 @@ export class TestBench extends TestTrigger {
      * @param {Function} functionCompleteResolve
      * @param {TestExecutionContext} context 
      */
-    static runFunction(testClass, testFunction, functionCompleteResolve, context) {
+    static async runFunction(testClass, testFunction, context) {
         TestBench.callResultListener(context, TestClassState.RUNNING, testClass, testFunction);
-        TestBench.loadObjectByClass(testClass, context).then(() => {
-            const testObject = context.testObjectMap.get(testClass.name);
+        await TestBench.loadObjectByClass(testClass, context);
+        const testObject = context.testObjectMap.get(testClass.name);
 
-            /** @type {Promise} */
-            let testFunctionResult = null;
+        /** @type {Promise} */
+        let testFunctionResult = null;
 
-            try {
-                testFunctionResult = testFunction.call(testObject);
-                if (!(testFunctionResult instanceof Promise)) {
-                    TestBench.reportSuccess(testClass, testFunction, context);
-                };
-            } catch (exception) {
-                TestBench.reportFailure(testClass, testFunction, exception, context);
-            }
+        try {
+            testFunctionResult = testFunction.call(testObject);
+        } catch (exception) {
+            TestBench.reportFailure(testClass, testFunction, exception, context);
+        }
 
-            if (!(testFunctionResult instanceof Promise)) {
-                functionCompleteResolve();
-                return;
-            }
+        if (!(testFunctionResult instanceof Promise)) {
+            TestBench.reportSuccess(testClass, testFunction, context);
+            return;
+        };
 
-            testFunctionResult.then(() => {
-                TestBench.reportSuccess(testClass, testFunction, context);
-                functionCompleteResolve();
-            }).catch((exception) => {
-                TestBench.reportFailure(testClass, testFunction, exception, context);
-                functionCompleteResolve();
-            });
-        });
+        try {
+            await testFunctionResult;
+            TestBench.reportSuccess(testClass, testFunction, context);
+        } catch(exception) {
+            TestBench.reportFailure(testClass, testFunction, exception, context);
+        }
     }
 
     /**
